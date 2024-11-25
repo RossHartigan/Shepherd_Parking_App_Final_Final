@@ -1,0 +1,67 @@
+# Name of the workflow
+name: Android CI with Unit Tests (Manual Trigger)
+
+# Controls when the workflow will run
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Check out the code from the repository
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      # Step 2: Grant execute permission for gradlew
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+
+      # Step 2.1: Convert line endings in gradlew to Unix style (fixes error)
+      - name: Convert line endings in gradlew to Unix style
+        run: |
+          sed -i 's/\r$//' ./gradlew
+
+      # Step 3: Set up JDK for Android (necessary for Gradle to work)
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: '17'  # Set the required Java version for your project
+
+      # Step 4: Set up the Android SDK
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v2
+        with:
+          api-level: 33  # Specify your Android API level
+          build-tools-version: '33.0.0'
+          components: |
+            platform-tools
+            build-tools;33.0.0
+            android-33
+            extra-google-google_play_services
+            extra-google-m2repository
+            extra-android-m2repository
+
+      # Step 5: Cache Gradle dependencies to speed up future builds
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: gradle-${{ runner.os }}-
+
+      # Step 6: Build the Android project
+      - name: Build the project
+        run: ./gradlew build --stacktrace
+
+      # Step 7: Run Android Lint checks
+      - name: Run Lint checks
+        run: ./gradlew lint
+
+      # Step 8: Run Unit Tests
+      - name: Run Unit Tests
+        run: ./gradlew test
